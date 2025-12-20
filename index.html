@@ -1,62 +1,50 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stream</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        body { background: #000; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; justify-content: space-between; align-items: center; font-family: sans-serif; overflow: hidden; }
-        video { width: 100%; flex-grow: 1; object-fit: cover; background: #222; }
-        .ui { padding: 20px; width: 100%; box-sizing: border-box; text-align: center; background: rgba(0,0,0,0.8); }
-        button { width: 100%; padding: 15px; font-size: 18px; border-radius: 12px; border: none; background: #0088cc; color: white; font-weight: bold; }
-        #status { margin-bottom: 10px; font-size: 14px; color: #aaa; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Test</title>
 </head>
-<body>
-    <video id="v" autoplay playsinline></video>
-    <div class="ui">
-        <div id="status">Камера готова</div>
-        <button id="btn">НАЧАТЬ ТРАНСЛЯЦИЮ</button>
-    </div>
+<body style="background: #222; color: #fff; text-align: center; font-family: sans-serif;">
+    <video id="v" autoplay playsinline style="width: 100%; max-height: 50vh; background: #000;"></video>
+    <h3 id="st">Статус: Готов</h3>
+    <button id="go" style="padding: 20px; width: 80%; font-size: 20px;">ПУСК</button>
 
     <script>
-        const video = document.getElementById('v');
-        const btn = document.getElementById('btn');
-        const status = document.getElementById('status');
-        let isStreaming = false;
+        const v = document.getElementById('v');
+        const st = document.getElementById('st');
+        const btn = document.getElementById('go');
 
-        // Запуск задней камеры
-        navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" }, 
-            audio: false 
-        }).then(s => { video.srcObject = s; })
-          .catch(e => { status.innerText = "Ошибка: " + e; });
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(s => { v.srcObject = s; })
+            .catch(e => { st.innerText = "Нет доступа к камере"; });
 
         btn.onclick = () => {
-            if (isStreaming) return;
-            isStreaming = true;
-            btn.style.display = "none";
-            status.innerText = "Трансляция идет на ПК...";
-
+            btn.style.display = 'none';
+            st.innerText = "Трансляция запущена...";
+            
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            
-            // Настройка частоты кадров
-            setInterval(() => {
-                canvas.width = video.videoWidth / 2; // Уменьшаем в 2 раза для скорости
-                canvas.height = video.videoHeight / 2;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            setInterval(async () => {
+                canvas.width = v.videoWidth / 4; // Очень маленькое разрешение для теста
+                canvas.height = v.videoHeight / 4;
+                ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
                 
-                canvas.toBlob(blob => {
-                    // ТВОЯ ССЫЛКА С ПРИПИСКОЙ /stream
-                    fetch('https://rating-tropical-changing-hansen.trycloudflare.com/stream', {
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.3));
+                
+                try {
+                    const res = await fetch('https://rating-tropical-changing-hansen.trycloudflare.com/stream', {
                         method: 'POST',
-                        body: blob,
-                        mode: 'no-cors'
-                    }).catch(err => console.log(err));
-                }, 'image/jpeg', 0.5); // Качество 50%
-            }, 100); // 10 кадров в секунду
+                        body: blob
+                    });
+                    st.innerText = "ОК: Кадр отправлен (" + new Date().toLocaleTimeString() + ")";
+                    st.style.color = "#0f0";
+                } catch (e) {
+                    st.innerText = "ОШИБКА: " + e.message;
+                    st.style.color = "#f00";
+                }
+            }, 500); // 2 кадра в секунду — для теста связи хватит
         };
     </script>
 </body>

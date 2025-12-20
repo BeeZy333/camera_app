@@ -34,7 +34,7 @@
                 const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.3));
                 
                 try {
-                    const res = await fetch('https://rating-tropical-changing-hansen.trycloudflare.com/stream', {
+                    const res = await fetch('https://198.18.0.1:8080/stream', {
                         method: 'POST',
                         body: blob
                     });

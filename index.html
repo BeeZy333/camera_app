@@ -2,41 +2,61 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TG Camera Stream</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stream</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background: #000; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; font-family: sans-serif; }
-        video { width: 100%; max-width: 500px; border-radius: 0 0 20px 20px; background: #222; }
-        .controls { padding: 20px; text-align: center; }
-        button { padding: 15px 30px; font-size: 18px; border-radius: 10px; border: none; background: #0088cc; color: white; cursor: pointer; }
+        body { background: #000; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; justify-content: space-between; align-items: center; font-family: sans-serif; overflow: hidden; }
+        video { width: 100%; flex-grow: 1; object-fit: cover; background: #222; }
+        .ui { padding: 20px; width: 100%; box-sizing: border-box; text-align: center; background: rgba(0,0,0,0.8); }
+        button { width: 100%; padding: 15px; font-size: 18px; border-radius: 12px; border: none; background: #0088cc; color: white; font-weight: bold; }
+        #status { margin-bottom: 10px; font-size: 14px; color: #aaa; }
     </style>
 </head>
 <body>
-    <video id="webcam" autoplay playsinline muted></video>
-    <div class="controls">
-        <h3 id="status">Камера готова</h3>
-        <button id="broadcastBtn">ТРАНСЛИРОВАТЬ</button>
+    <video id="v" autoplay playsinline></video>
+    <div class="ui">
+        <div id="status">Камера готова</div>
+        <button id="btn">НАЧАТЬ ТРАНСЛЯЦИЮ</button>
     </div>
 
     <script>
-        const video = document.getElementById('webcam');
-        const btn = document.getElementById('broadcastBtn');
+        const video = document.getElementById('v');
+        const btn = document.getElementById('btn');
         const status = document.getElementById('status');
+        let isStreaming = false;
 
-        // Запрашиваем камеру
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(err => {
-                status.innerText = "Ошибка камеры: " + err;
-            });
+        // Запуск задней камеры
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" }, 
+            audio: false 
+        }).then(s => { video.srcObject = s; })
+          .catch(e => { status.innerText = "Ошибка: " + e; });
 
         btn.onclick = () => {
-            status.innerText = "Подключение к ПК...";
-            status.style.color = "#00ff00";
-            // Тут мы добавим логику отправки видео в следующем шаге
+            if (isStreaming) return;
+            isStreaming = true;
+            btn.style.display = "none";
+            status.innerText = "Трансляция идет на ПК...";
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Настройка частоты кадров
+            setInterval(() => {
+                canvas.width = video.videoWidth / 2; // Уменьшаем в 2 раза для скорости
+                canvas.height = video.videoHeight / 2;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                canvas.toBlob(blob => {
+                    // ТВОЯ ССЫЛКА С ПРИПИСКОЙ /stream
+                    fetch('https://scored-except-nancy-interstate.trycloudflare.com/stream', {
+                        method: 'POST',
+                        body: blob,
+                        mode: 'no-cors'
+                    }).catch(err => console.log(err));
+                }, 'image/jpeg', 0.5); // Качество 50%
+            }, 100); // 10 кадров в секунду
         };
     </script>
 </body>

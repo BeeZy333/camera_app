@@ -2,49 +2,49 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WiFi Stream</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { background: #000; color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        video { width: 100%; flex-grow: 1; object-fit: contain; }
+        .btn-box { padding: 20px; background: #1a1a1a; }
+        button { background: #0088cc; color: white; border: none; padding: 20px; border-radius: 15px; font-size: 20px; width: 100%; font-weight: bold; }
+    </style>
 </head>
-<body style="background: #222; color: #fff; text-align: center; font-family: sans-serif;">
-    <video id="v" autoplay playsinline style="width: 100%; max-height: 50vh; background: #000;"></video>
-    <h3 id="st">Статус: Готов</h3>
-    <button id="go" style="padding: 20px; width: 80%; font-size: 20px;">ПУСК</button>
+<body>
+    <video id="v" autoplay playsinline></video>
+    <div class="btn-box"><button id="go">НАЧАТЬ ТРАНСЛЯЦИЮ</button></div>
 
     <script>
         const v = document.getElementById('v');
-        const st = document.getElementById('st');
         const btn = document.getElementById('go');
+        
+        // Автоматически берем IP из ссылки бота
+        const urlParams = new URLSearchParams(window.location.search);
+        const pc_ip = urlParams.get('ip');
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(s => { v.srcObject = s; })
-            .catch(e => { st.innerText = "Нет доступа к камере"; });
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: 1280 } })
+            .then(s => { v.srcObject = s; });
 
-        btn.onclick = () => {
+        btn.onclick = async () => {
             btn.style.display = 'none';
-            st.innerText = "Трансляция запущена...";
             
+            // Защита от засыпания экрана
+            if ('wakeLock' in navigator) { try { await navigator.wakeLock.request('screen'); } catch (e) {} }
+
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
 
             setInterval(async () => {
-                canvas.width = v.videoWidth / 4; // Очень маленькое разрешение для теста
-                canvas.height = v.videoHeight / 4;
-                ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+                canvas.width = v.videoWidth;
+                canvas.height = v.videoHeight;
+                ctx.drawImage(v, 0, 0);
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
                 
-                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.3));
-                
-                try {
-                    const res = await fetch('https://198.18.0.1:8080/stream', {
-                        method: 'POST',
-                        body: blob
-                    });
-                    st.innerText = "ОК: Кадр отправлен (" + new Date().toLocaleTimeString() + ")";
-                    st.style.color = "#0f0";
-                } catch (e) {
-                    st.innerText = "ОШИБКА: " + e.message;
-                    st.style.color = "#f00";
-                }
-            }, 500); // 2 кадра в секунду — для теста связи хватит
+                // Отправляем напрямую на локальный IP
+                fetch(`http://${pc_ip}:8080/stream`, { method: 'POST', body: blob, mode: 'cors' }).catch(() => {});
+            }, 50); // 20 FPS
         };
     </script>
 </body>

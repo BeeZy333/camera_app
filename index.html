@@ -3,35 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WiFi Stream</title>
+    <title>Stream Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background: #000; color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         video { width: 100%; flex-grow: 1; object-fit: contain; }
-        .btn-box { padding: 20px; background: #1a1a1a; }
-        button { background: #0088cc; color: white; border: none; padding: 20px; border-radius: 15px; font-size: 20px; width: 100%; font-weight: bold; }
+        .controls { padding: 20px; background: #1a1a1a; text-align: center; }
+        button { background: #0088cc; color: white; border: none; padding: 20px; border-radius: 15px; font-size: 20px; font-weight: bold; width: 100%; }
     </style>
 </head>
 <body>
     <video id="v" autoplay playsinline></video>
-    <div class="btn-box"><button id="go">НАЧАТЬ ТРАНСЛЯЦИЮ</button></div>
+    <div class="controls">
+        <button id="btn">НАЧАТЬ ТРАНСЛЯЦИЮ</button>
+    </div>
 
     <script>
         const v = document.getElementById('v');
-        const btn = document.getElementById('go');
-        
-        // Автоматически берем IP из ссылки бота
+        const btn = document.getElementById('btn');
         const urlParams = new URLSearchParams(window.location.search);
-        const pc_ip = urlParams.get('ip');
+        const pc_ip = urlParams.get('ip'); // Берем IP из ссылки
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: 1280 } })
-            .then(s => { v.srcObject = s; });
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } 
+        }).then(s => { v.srcObject = s; });
 
         btn.onclick = async () => {
             btn.style.display = 'none';
-            
-            // Защита от засыпания экрана
-            if ('wakeLock' in navigator) { try { await navigator.wakeLock.request('screen'); } catch (e) {} }
+            // Запрет сна
+            if ('wakeLock' in navigator) { try { await navigator.wakeLock.request('screen'); } catch(e){} }
 
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -40,11 +40,14 @@
                 canvas.width = v.videoWidth;
                 canvas.height = v.videoHeight;
                 ctx.drawImage(v, 0, 0);
-                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.95));
                 
-                // Отправляем напрямую на локальный IP
-                fetch(`http://${pc_ip}:8080/stream`, { method: 'POST', body: blob, mode: 'cors' }).catch(() => {});
-            }, 50); // 20 FPS
+                fetch(`http://${pc_ip}:8080/stream`, {
+                    method: 'POST',
+                    body: blob,
+                    mode: 'cors'
+                }).catch(e => console.log("Ошибка: проверьте настройки Mixed Content"));
+            }, 40); // 25 FPS
         };
     </script>
 </body>
